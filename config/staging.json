@@ -1,0 +1,22 @@
+{
+  "port": 2032,
+  "hostAddress": "localhost:2032",
+  "jwtOptions": {
+    "expiresIn": "365d"
+  },
+  "swaggerDefinition": {
+    "info": {
+      "title": "Launchpad-node",
+      "version": "2.0",
+      "description": "Launchpad- API Docs"
+    },
+    "basePath": "/api",
+    "securityDefinitions": {
+      "tokenauth": {
+        "type": "apiKey",
+        "name": "Authorization",
+        "in": "header"
+      }
+    }
+  }
+}
