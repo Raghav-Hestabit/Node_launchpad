@@ -1,19 +1,15 @@
 import Joi from 'joi';
-import * as express from 'express'
 import apiError from '../../../helper/apiError';
 import response from '../../../../assests/response';
 import bcrypt from "bcryptjs";
 import { userServices } from "../../services/user";
-import userType from '../../../enums/userType';
 import status from '../../../enums/status';
 import commonFunction from '../../../helper/util';
-import responseMessage, { USER_NOT_FOUND } from '../../../../assests/responseMessage';
-import error from '../../../../assests/error';
-import { ObjectId } from 'mongodb';
+import responseMessage from '../../../../assests/responseMessage';
 
 
 
-const { checkUserExists, createUser, userUpdate, findUser, saveEmailOtp, saveMobileOtp, removeEmailOtp, removeMobileOtp, findOtpBuffer, createReferId, createRefer } = userServices;
+const { checkUserExists, createUser, userUpdate, findUser, findUserPagination } = userServices;
 
 
 export const userController = {
@@ -64,44 +60,56 @@ export const userController = {
             deviceType: Joi.string().empty('').optional(),
             deviceToken: Joi.string().empty('').optional(),
         });
-
-
         try {
-
             const { error, value } = validationSchema.validate(req.body);
             if (error) {
                 return next(error);
             }
-
-            let user = await checkUserExists({ $and: [{ status: { $ne: status.DELETE } }, { $or: [{ email: req.body.emailOrMobile }, { mobileNumber: req.body.emailOrMobile }] }] });
-
+            const { emailOrMobile, password } = value;
+            const user = await checkUserExists({
+                $and: [
+                    { status: { $ne: status.DELETE } },
+                    { $or: [{ email: emailOrMobile }, { mobileNumber: emailOrMobile }] }
+                ]
+            });
             if (!user) {
-                throw apiError.notFound(responseMessage.USER_NOT_FOUND)
+                throw apiError.notFound(responseMessage.USER_NOT_FOUND);
             }
-
-
-            if (user.status == status.BLOCK) {
-                throw apiError.unauthorized(responseMessage.ACCOUNT_APPROVAL)
+            if (user.status === status.BLOCK) {
+                throw apiError.unauthorized(responseMessage.ACCOUNT_APPROVAL);
             }
-
-            const isPasswordValid = await bcrypt.compare(req.body.password, user.password);
-
-
+            const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) {
-                throw apiError.unauthorized(responseMessage.INCORRECT_LOGIN)
+                throw apiError.unauthorized(responseMessage.INCORRECT_LOGIN);
+            }
+
+            if (!user.isUserVerfied) {
+                let otp = commonFunction.getOTP();
+                var otpTime = new Date().getTime() + 300000;
+                await commonFunction.sendMail(value.email, value.name, otp)
+                await userUpdate({ _id: user._id }, { otp: otp, otpTime: otpTime })
             }
 
 
-            var token = await commonFunction.getToken({
-                userId: user._id
-            })
-            return res.json(new response(user, responseMessage.LOGIN))
-
-
+            const token = await commonFunction.getToken({ userId: user._id });
+            const userResponse = {
+                _id: user._id,
+                token: token,
+                name: user.name,
+                profilePic: user.profilePic,
+                isUserVerfied: user.isUserVerfied,
+                createdAt: user.createdAt,
+                userName: user.userName,
+                userType: user.userType,
+                approveStatus: user.approveStatus,
+                status: user.status,
+            };
+            return res.json(new response(userResponse, responseMessage.LOGIN));
         } catch (error) {
             return next(error);
         }
     },
+
 
     /**
  * @swagger
@@ -203,10 +211,12 @@ export const userController = {
                         image.originalname
                     );
                     imageUrlResult = imageResult;
+
+                    await commonFunction.removeFile(image.path)
                 }
             }
 
-            
+
 
 
 
@@ -215,13 +225,26 @@ export const userController = {
             var otpTime = new Date().getTime() + 300000;
             value.otp = otp;
             value.otpTime = otpTime;
-            value.profilePic =  imageUrlResult;
+            value.profilePic = imageUrlResult;
 
-
-
+            await commonFunction.sendMail(value.email, value.name, otp)
 
             const result = await createUser(value);
-            return res.json(new response(result, responseMessage.USER_CREATED));
+
+            const userResponse = {
+                _id: result._id,
+                name: result.name,
+                profilePic: result.profilePic,
+                isUserVerfied: result.isUserVerfied,
+                createdAt: result.createdAt,
+                userName: result.userName,
+                userType: result.userType,
+                approveStatus: result.approveStatus,
+                status: result.status,
+            };
+
+
+            return res.json(new response(userResponse, responseMessage.USER_CREATED));
 
         } catch (error) {
             return next(error);
@@ -336,10 +359,11 @@ export const userController = {
             }
 
             let genrateOTP = commonFunction.getOTP();
+            var otpTime = new Date().getTime() + 300000;
+            await commonFunction.sendMail(value.email, value.name, otp)
+            await userUpdate({ _id: user._id }, { otp: genrateOTP, otpTime: otpTime })
 
-            await userUpdate({ _id: userDetail._id }, { otp: genrateOTP });
-
-            return res.json(new response({ otp: genrateOTP }, responseMessage.OTP_RESEND));
+            return res.json(new response({}, responseMessage.OTP_RESEND));
 
 
         } catch (error) {
@@ -389,10 +413,11 @@ export const userController = {
             }
 
             let genrateOTP = commonFunction.getOTP();
+            var otpTime = new Date().getTime() + 300000;
+            await commonFunction.sendMail(value.email, value.name, otp)
+            await userUpdate({ _id: user._id }, { otp: genrateOTP, otpTime: otpTime })
 
-            await userUpdate({ _id: userDetail._id }, { otp: genrateOTP });
-
-            return res.json(new response({ otp: genrateOTP }, responseMessage.OTP_SEND));
+            return res.json(new response({}, responseMessage.OTP_SEND));
         } catch (error) {
             return next(error);
         }
@@ -403,7 +428,7 @@ export const userController = {
     /**
    * @swagger
    * /user/resetPassword:
-   *   get:
+   *   put:
    *     tags:
    *       - USER
    *     description: Reset Password
@@ -427,8 +452,6 @@ export const userController = {
    *         description: User not found
    */
 
-
-
     async resetPassword(req, res, next) {
         let validateRequest = Joi.object({
             userId: Joi.string().required(),
@@ -448,7 +471,6 @@ export const userController = {
             }
 
 
-
             await userUpdate({ _id: value.userId }, { password: bcrypt.hashSync(value.password, 10) });
 
             return res.json(new response({}, responseMessage.PWD_CHANGED));
@@ -462,6 +484,245 @@ export const userController = {
 
     },
 
+
+
+    /**
+    * @swagger
+    * /user/userProfile:
+    *   get:
+    *     tags:
+    *       - USER
+    *     description: Profile
+    *     produces:
+    *       - application/json
+    *     parameters:
+    *       - name: token
+    *         description: token
+    *         in: header
+    *         required: true
+    *     responses:
+    *       200:
+    *         description: Returns success message
+    */
+
+    async userProfile(req, res, next) {
+        try {
+            let userDetail = await findUser({ _id: req.userId })
+            if (!userDetail) {
+                throw apiError.notFound(responseMessage.USER_NOT_FOUND);
+            }
+
+            return res.json(new response(userDetail, responseMessage.USER_PROFILE_FOUND));
+
+        } catch (error) {
+            return next(error);
+        }
+    },
+
+
+
+    /**
+   * @swagger
+   * /user/changePassword:
+   *   put:
+   *     tags:
+   *       - USER
+   *     description: Change Password
+   *     produces:
+   *       - application/json
+   *     parameters:
+   *       - name: token
+   *         description: token
+   *         in: header
+   *         required: true
+   *       - name: password
+   *         description: password
+   *         in: query
+   *         required: true
+   *     responses:
+   *       200:
+   *         description: Returns success message
+   */
+
+    async changePassword(req, res, next) {
+
+        let validateRequest = Joi.object({
+            password: Joi.string().required()
+        })
+        try {
+            const { error, value } = validateRequest.validate(req.query)
+            if (error) {
+                return next(error);
+            }
+
+
+            let userDetail = await findUser({ _id: req.userId });
+            if (!userDetail) {
+                throw apiError.notFound(responseMessage.USER_NOT_FOUND);
+            }
+
+            await userUpdate({ _id: req.userId }, { password: bcrypt.hashSync(value.password, 10) });
+
+            return res.json(new response({}, responseMessage.PWD_CHANGED));
+
+        } catch (error) {
+            return next(error);
+        }
+    },
+
+
+
+    /**
+     * @swagger
+     * /user/updateProfile:
+     *   post:
+     *     tags:
+     *       - USER
+     *     description: Profile update
+     *     consumes:
+     *       - multipart/form-data
+     *     produces:
+     *       - application/json
+     *     parameters:
+     *       - in: header
+     *         name: token
+     *         type: string
+     *         required: true
+     *         description: token
+     *       - in: formData
+     *         name: name
+     *         type: string
+     *         required: true
+     *         description: name
+     *       - in: formData
+     *         name: dob
+     *         type: string
+     *         required: true
+     *         description: dob
+     *       - in: formData
+     *         name: address
+     *         type: string
+     *         required: true
+     *         description: address
+     *       - in: formData
+     *         name: mobileNumber
+     *         type: string
+     *         required: true
+     *         description: mobileNumber
+     *       - in: formData
+     *         name: gender
+     *         type: string
+     *         required: true
+     *         description: gender
+     *       - in: formData
+     *         name: countryCode
+     *         type: string
+     *         required: true
+     *         description: countryCode
+     *       - in: formData
+     *         name: profile
+     *         type: file
+     *         required: true
+     *         description: profile
+     *     responses:
+     *       200:
+     *         description: Successful signup
+     *       404:
+     *         description: User not found
+     */
+
+    async updateProfile(req, res, next) {
+        let validateRequest = Joi.object({
+            name: Joi.string().required(),
+            dob: Joi.date().required(),
+            address: Joi.string().required(),
+            mobileNumber: Joi.string().required(),
+            gender: Joi.string().required(),
+            countryCode: Joi.string().required(),
+        })
+
+        try {
+            const { error, value } = validateRequest.validate(req.body);
+
+            if (error) {
+                return next(error);
+            }
+
+            let userDetails = await findUser({ _id: req.userId });
+            if (!userDetails) {
+                throw apiError.notFound(responseMessage.USER_NOT_FOUND);
+            }
+
+            let imageUrlResult;
+
+            if (req.files.length != 0) {
+                for (const image of req.files) {
+
+                    let imageResult = await commonFunction.uploadFile(
+                        image.path,
+                        image.originalname
+                    );
+                    imageUrlResult = imageResult;
+
+                    await commonFunction.removeFile(image.path)
+                }
+            }
+
+            userDetails.profilePic = imageUrlResult;
+            userDetails.name = value.name;
+            userDetails.dob = value.dob;
+            userDetails.address = value.address;
+            userDetails.mobileNumber = value.mobileNumber;
+            userDetails.gender = value.gender;
+            userDetails.countryCode = value.countryCode;
+
+            await userDetails.save();
+
+
+            return res.json(new response(userDetails, responseMessage.UPDATE_USER_PROFILE))
+
+        } catch (error) {
+            return next(error);
+        }
+
+    },
+
+
+
+    /**
+   * @swagger
+   * /user/deleteAccount:
+   *   delete:
+   *     tags:
+   *       - USER
+   *     description: Delete Account
+   *     produces:
+   *       - application/json
+   *     parameters:
+   *       - name: token
+   *         description: token
+   *         in: header
+   *         required: true
+   *     responses:
+   *       200:
+   *         description: Returns success message
+   */
+
+    async deleteAccount(req, res, next) {
+        try {
+            let userDetail = await findUser({ _id: req.userId });
+            if (!userDetail) {
+                throw apiError.notFound(responseMessage.USER_NOT_FOUND);
+            }
+
+            await userUpdate({ _id: req.userId }, { status: status.DELETE });
+            return res.json(new response({}, responseMessage.ACCOUNT_DELETE));
+
+        } catch (error) {
+            return next(error);
+        }
+
+    },
 
 
 

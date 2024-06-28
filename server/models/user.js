@@ -1,10 +1,9 @@
 import Mongoose, { Schema, Types } from "mongoose";
-import mongoosePaginate from "mongoose-paginate";
+import mongoosePaginate from "mongoose-paginate-v2";
 import status from '../enums/status';
 import approveStatus from '../enums/approveStatus';
 import userType, { USER } from '../enums/userType';
 import bcrypt from 'bcryptjs';
-import { string } from "joi";
 import gender from "../enums/gender";
 
 var userModel = new Schema({
@@ -81,7 +80,6 @@ var userModel = new Schema({
 
 
 userModel.plugin(mongoosePaginate);
-
 
 module.exports = Mongoose.model('user', userModel);
 

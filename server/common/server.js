@@ -7,6 +7,7 @@ import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
 import swaggerJSDoc from "swagger-jsdoc";
 import apiErrorHandler from '../helper/apiErrorHandler';
+import responseMessage from "../../assests/responseMessage";
 const app = new express();
 const server = http.createServer(app);
 const root = path.normalize(`${__dirname}/../..`);
@@ -64,7 +65,7 @@ class ExpressServer {
       try {
         mongoose.connect(dbUrl, {});
         
-        console.log('Mongodb connection established');
+        console.log(responseMessage.MONGODB_CONNECTION);
         return this;
       } catch (err) {
         console.error(`Error in mongodb connection ${err.message}`);
@@ -72,7 +73,7 @@ class ExpressServer {
       }
     }
   
-    // })
+  
     async intailizeScheduler(){
       // let shedule = new scheduler()
 

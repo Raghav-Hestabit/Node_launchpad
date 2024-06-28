@@ -1,15 +1,19 @@
 import config from "config";
-import Joi from "joi";
 import jwt, { decode } from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import cloudinary from 'cloudinary';
 const axios = require('axios');
+import fs from 'fs';
+
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+
+
 
 
 module.exports = {
@@ -68,7 +72,7 @@ module.exports = {
 
   sendMail: async (to, name, otp) => {
     try {
-      let textMsg = "Please use the verification code below on the Dream Walk Application:";
+      let textMsg = "Please use the verification code below on the Launchpad Application:";
 
       var html = `<!DOCTYPE html>
       <html lang="en">
@@ -374,7 +378,7 @@ module.exports = {
                 <td align="center">
                   <img
                     style="width: 170px; margin: 0 0 10px"
-                    src="https://calisdiary.s3.amazonaws.com/app_logo.png"
+                    src="https://asset.cloudinary.com/dfdqspndo/7ef5ffe7dc4a1c326a446465821d2d8a" 
                   />
                 </td>
               </tr>
@@ -395,7 +399,7 @@ module.exports = {
                                 <tr>
                                   <td>
                                     <h1>Email Verification</h1>
-                                    <p><strong>Dear ${name || "Customer"},</strong></p>
+                                    <p><strong>Dear ${name || "User"},</strong></p>
                                     <p>
                                       <strong>${textMsg}</strong>
                                     </p>
@@ -418,7 +422,7 @@ module.exports = {
                                     <p>&nbsp;</p>
                                     <p>
                                       Sincerely,<br />
-                                      The Dream Walk Team
+                                      The Hestabit Team
                                     </p>
                                   </td>
                                 </tr>
@@ -439,17 +443,29 @@ module.exports = {
 
 
 
+      // var transporter = nodemailer.createTransport({
+      //   "host": process.env.SMTP_HOST,
+      //   "port": process.env.SMTP_PORT,
+      //   "secure": false,
+      //   "auth": {
+      //     "user": process.env.SMTP_USER,
+      //     "pass": process.env.SMTP_PASSWORD
+      //   }
+      // });
+
+
       var transporter = nodemailer.createTransport({
-        "host": process.env.AWS_SES_CONFIG_HOST,
-        "port": process.env.AWS_SES_CONFIG_PORT,
-        "secure": false,
-        "auth": {
-          "user": process.env.AWS_SES_CONFIG_AUTH_USER,
-          "pass": process.env.AWS_SES_CONFIG_AUTH_PASS
+        host: "sandbox.smtp.mailtrap.io",
+        port: 2525,
+        auth: {
+          user: "7c78637494e342",
+          pass: "37bd365997604f"
         }
       });
+
+
       var mailOptions = {
-        from: process.env.AWS_SES_CONFIG_AUTH_EMAIL,
+        from: process.env.SMTP_AUTH_EMAIL,
         to: to,
         subject: 'Email Verification',
         html: html
@@ -485,17 +501,18 @@ module.exports = {
   uploadFile: async (filePath, fileKey) => {
     const cloudinaryResult = await cloudinary.v2.uploader.upload(filePath);
     return cloudinaryResult.secure_url;
+  },
+
+
+  removeFile: async (fileName)=> {
+    fs.unlink(fileName, (err) => {
+      if (err) {
+        console.error(`Error deleting file: ${err}`);
+      } else {
+        console.log(`File has been successfully deleted.`);
+      }
+    });
   }
 
-
 }
 
-async function removeFile(fileName) {
-  fs.unlink(fileName, (err) => {
-    if (err) {
-      console.error(`Error deleting file: ${err}`);
-    } else {
-      console.log(`File '${fileName}' has been successfully deleted.`);
-    }
-  });
-}

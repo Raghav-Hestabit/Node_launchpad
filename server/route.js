@@ -3,6 +3,7 @@
 
 
 import user from "./api/controllers/user/routes";
+import admin from "./api/controllers/admin/routes";
 
 
 /**
@@ -14,6 +15,7 @@ import user from "./api/controllers/user/routes";
 
 export default function routes(app) {
   app.use("/api/user", user);
+  app.use("/api/admin", admin);
   
   return app;
 }

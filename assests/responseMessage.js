@@ -18,6 +18,9 @@ module.exports = {
 	OTP_VERIFY: 'OTP verified successfully.',
 	USER_ALREADY_EXIST: 'User already exist.',
 	USER_NOT_FOUND: 'User not found.',
+	ADMIN_NOT_FOUND: 'Admin not found.',
+	REQUESTED_USER_NOT_FOUND: 'Requested user not found.',
+	USER_NOT_VERIFIED: 'User not verified.',
 	RECEIVER_NOT_FOUND: 'Receiver not found.',
 	SENDER_NOT_FOUND: 'Sender not found.',
 	USER_EXISTS: 'User Exists.',
@@ -60,6 +63,7 @@ module.exports = {
 	NOT_FOUND: 'Not Found',
 	FIELD_REQUIRED: 'Fields are required.',
 	USER_BLOCKED: "User is Blocked.",
+	USER_BLOCK: "User blocked successfully.",
 	USER_ACTIVATED: "User is UnBlocked .",
 	BANNER_ADDED: 'Banner added successfully.',
 	BANNER_UPDATED: 'Banner updated successfully.',
@@ -77,12 +81,16 @@ module.exports = {
 	USER_PROFILE_NOT_FOUND: "User profile not found.",
 	MOBILE_AND_EMAIL_EXSIT:'Email and phone number already exist',
 	USER_NAME_EXIST: 'User name already exist',
-	BLOCK_USER : (data) =>{ 
-		if(data == status.BLOCK) return 'User blocked successfully.'
-		else  return 'User activated successfully.'
-	},
 	USER_DELETE : 'User deleted successfully',
 	ADDRESS_NOT_FOUND : 'Address not found.',
 	CONTEST_EXPIRED: 'Contest is expired.',
 	INCORRECT_ZIPCODE: 'Please correct your zipcode',
+	USERS_FOUND: 'Users list found sucessfully',
+	USERS_ALREADY_BLOCKED: 'User is already blocked',
+	USERS_ALREADY_UNBLOCKED: 'User is already unblocked',
+	USERS_UNBLOCKED: 'User unblocked successfully',
+
+
+	SESSION_EXPIRED: 'Session Expired, Please login again.',
+	MONGODB_CONNECTION: 'Mongodb connection established',
 }

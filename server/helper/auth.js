@@ -1,64 +1,44 @@
-import config from "config";
 import jwt from "jsonwebtoken";
 import userModel from "../models/user";
 import apiError from './apiError';
-import responseMessage from '../../assets/responseMessage';
+import responseMessage from '../../assests/responseMessage';
+
+const sendResponse = (res, status, responseCode, responseMessage) => {
+  return res.status(status).json({
+    responseCode,
+    responseMessage,
+  });
+};
 
 module.exports = {
-
   async verifyToken(req, res, next) {
     try {
+      const token = req.headers.token;
 
-      if (req.headers.token === "") {
-        return res.status(401).json({
-          responseCode: 401,
-          responseMessage: responseMessage.UNAUTHORIZED
-        });
+      if (!token) {
+        return sendResponse(res, 401, 401, responseMessage.UNAUTHORIZED);
       }
 
-      if (req.headers.token) {
-        const decodedToken = jwt.verify(req.headers.token, process.env.JWTSECRET);
+      const decodedToken = jwt.verify(token, process.env.JWTSECRET);
+      const user = await userModel.findOne({ _id: decodedToken.userId });
 
-        if (decodedToken) {
-          const result2 = await userModel.findOne({ _id: decodedToken.userId });
+      if (!user) {
+        return sendResponse(res, 404, 404, responseMessage.USER_NOT_FOUND);
+      }
 
-          if (!result2) {
-            return res.status(404).json({
-              responseCode: 404,
-              responseMessage: "USER NOT FOUND"
-            });
-          } else if (result2.status == "BLOCKED") {
-            return res.status(403).json({
-              responseCode: 450,
-              responseMessage: "You have been blocked by admin."
-            });
-          } else if (result2.status == "DELETE") {
-            return res.status(402).json({
-              responseCode: 440,
-              responseMessage: "Your account has been deleted by admin."
-            });
-          } else {
-            req.userId = decodedToken.userId;
-            next();
-          }
-        }
-      } else {
-        throw apiError.invalid(responseMessage.NO_TOKEN);
+      switch (user.status) {
+        case "BLOCKED":
+          return sendResponse(res, 403, 450, responseMessage.BLOCK_BY_ADMIN);
+        case "DELETE":
+          return sendResponse(res, 402, 440, responseMessage.DELETE_BY_ADMIN);
+        default:
+          req.userId = decodedToken.userId;
+          next();
       }
     } catch (err) {
-      if (err.name == "TokenExpiredError") {
-        return res.status(440).send({
-          responseCode: 440,
-          responseMessage: "Session Expired, Please login again.",
-        });
-      } else {
-        return res.status(401).json({
-          responseCode: 401,
-          responseMessage: responseMessage.UNAUTHORIZED
-        });
-
-
-      }
+      const responseCode = err.name === "TokenExpiredError" ? 440 : 401;
+      const responseMessageText = err.name === "TokenExpiredError" ? responseMessage.SESSION_EXPIRED : responseMessage.UNAUTHORIZED;
+      return sendResponse(res, responseCode, responseCode, responseMessageText);
     }
   }
 };

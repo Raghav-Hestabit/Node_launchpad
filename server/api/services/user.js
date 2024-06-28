@@ -26,20 +26,12 @@ export const userServices = {
 
     findUser: async (query) => {
         return await userModel.findById(query).select(
-            "-otp -password -otpTime");
+            "-otp -password -otpTime -deviceToken");
     },
+
+
     findUserPagination: async (query, option) => {
         return await userModel.paginate(query, option)
-    },
-
-
-
-
-
-
-
-    countUser: async (query) => {
-        return await userModel.countDocuments(query)
     },
 
 

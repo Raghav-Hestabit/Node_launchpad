@@ -20,4 +20,4 @@ const apiErrorhandler = (err, req, res, next) => {
     });
     return;
 };
-module.exports = apiErrorhandler;
+export default apiErrorhandler;

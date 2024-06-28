@@ -13,7 +13,5 @@ const server = new Server()
   .configureDb(dbUrl)
   .then((_server) => _server.listen(config.get('port')));
 
-  
-
 
 export default server;
