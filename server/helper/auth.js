@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
 import userModel from "../models/user";
-import apiError from './apiError';
 import responseMessage from '../../assests/responseMessage';
 
 const sendResponse = (res, status, responseCode, responseMessage) => {

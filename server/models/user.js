@@ -3,6 +3,7 @@ import mongoosePaginate from "mongoose-paginate-v2";
 import status from '../enums/status';
 import approveStatus from '../enums/approveStatus';
 import userType, { USER } from '../enums/userType';
+import subjects, { SUBJECT } from '../enums/subjects';
 import bcrypt from 'bcryptjs';
 import gender from "../enums/gender";
 
@@ -10,33 +11,42 @@ var userModel = new Schema({
     name: {
         type: String
     },
-    userName: {
+
+    email: {
         type: String
     },
-    dob: {
-        type: Date
-    },
-    mobileNumber: {
-        type: String
-    },
+
     address: {
         type: String
     },
+
+    dob: {
+        type: String
+    },
+
+    profilePic: {
+        type: String,
+        default: ''
+    },
+
     gender: {
         type: String, enum: [gender.MALE, gender.FEMALE, gender.OTHER]
     },
-    countryCode: {
+
+
+    currentSchool: {
         type: String
     },
-    userType: {
-        type: String,
-        enum: [userType.ADMIN, userType.USER],
-        default: userType.USER
+
+    previousSchool: {
+        type: String
     },
+
+
     approveStatus: {
         type: String,
         enum: [approveStatus.APPROVED, approveStatus.PENDING, approveStatus.REJECTED],
-        default: approveStatus.APPROVED
+        default: approveStatus.PENDING
     },
 
     status: {
@@ -54,27 +64,46 @@ var userModel = new Schema({
     deviceToken: [{
         type: String
     }],
-    otp: {
-        type: String
-    },
-    profilePic: {
-        type: String,
-        default:''
-    },
-    otpTime: {
-        type: String
-    },
+
     password: {
         type: String
     },
-    isUserVerfied: {
-        type: Boolean,
-        default:false
-    },
-    email: {
-        type:String
-    }
 
+    mothername: {
+        type: String,
+
+    },
+    fathername: {
+        type: String,
+
+    },
+    mobileNumber: {
+        type: String,
+
+    },
+
+    assignedTeacher: [
+        {
+            type: Mongoose.Schema.ObjectId,
+            ref: 'user',
+            type: String
+        }
+    ],
+    userType: {
+        type: String,
+        enum: [userType.ADMIN, userType.USER, userType.TEACHER, userType.STUDENT]
+    },
+
+    experience: {
+        type: String
+    },
+
+    expertiseInSubjects: [{
+
+        type: String,
+        enum: [subjects.HINDI, subjects.ENGLISH, subjects.MATH, subjects.SCIENCE, subjects.ART, subjects.HISTORY]
+
+    }]
 
 }, { timestamps: true })
 
@@ -101,7 +130,8 @@ async function createAdmin() {
                 countryCode: "+91",
                 password: bcrypt.hashSync("Hestabit@1"),
                 userType: userType.ADMIN,
-                isUserVerfied: true
+                isUserVerfied: true,
+                approveStatus: approveStatus.APPROVED
             }
 
             const result = await User.create(adminDetail);

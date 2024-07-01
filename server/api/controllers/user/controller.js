@@ -6,6 +6,8 @@ import { userServices } from "../../services/user";
 import status from '../../../enums/status';
 import commonFunction from '../../../helper/util';
 import responseMessage from '../../../../assests/responseMessage';
+import userType from '../../../enums/userType';
+import approveStatus from '../../../enums/approveStatus';
 
 
 
@@ -17,7 +19,7 @@ export const userController = {
 
     /**
     * @swagger
-    * /user/loginUser:
+    * /user/login:
     *   post:
     *     tags:
     *       - USER
@@ -32,7 +34,7 @@ export const userController = {
     *         schema:
     *           type: object
     *           properties:
-    *             emailOrMobile:
+    *             email:
     *               type: string
     *             password:
     *               type: string
@@ -41,7 +43,7 @@ export const userController = {
     *             deviceToken:
     *               type: string
     *           required:
-    *             - emailOrMobile
+    *             - email
     *             - password
     *     responses:
     *       200:
@@ -53,9 +55,9 @@ export const userController = {
     */
 
 
-    async loginUser(req, res, next) {
+    async login(req, res, next) {
         const validationSchema = Joi.object({
-            emailOrMobile: Joi.string().required(),
+            email: Joi.string().email().required(),
             password: Joi.string().required(),
             deviceType: Joi.string().empty('').optional(),
             deviceToken: Joi.string().empty('').optional(),
@@ -65,32 +67,27 @@ export const userController = {
             if (error) {
                 return next(error);
             }
-            const { emailOrMobile, password } = value;
+            const { email, password } = value;
             const user = await checkUserExists({
                 $and: [
                     { status: { $ne: status.DELETE } },
-                    { $or: [{ email: emailOrMobile }, { mobileNumber: emailOrMobile }] }
+                    { email: email }
                 ]
             });
             if (!user) {
                 throw apiError.notFound(responseMessage.USER_NOT_FOUND);
             }
-            if (user.status === status.BLOCK) {
-                throw apiError.unauthorized(responseMessage.ACCOUNT_APPROVAL);
+
+            if(user.approveStatus !== approveStatus.APPROVED){
+                throw apiError.unauthorized(responseMessage.APPROVAL_REQURIED)
             }
+
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) {
                 throw apiError.unauthorized(responseMessage.INCORRECT_LOGIN);
             }
 
-            if (!user.isUserVerfied) {
-                let otp = commonFunction.getOTP();
-                var otpTime = new Date().getTime() + 300000;
-                await commonFunction.sendMail(value.email, value.name, otp)
-                await userUpdate({ _id: user._id }, { otp: otp, otpTime: otpTime })
-            }
-
-
+           
             const token = await commonFunction.getToken({ userId: user._id });
             const userResponse = {
                 _id: user._id,
@@ -112,81 +109,98 @@ export const userController = {
 
 
     /**
- * @swagger
- * /user/signUp:
- *   post:
- *     tags:
- *       - USER
- *     description: Sign Up
- *     consumes:
- *       - multipart/form-data
- *     produces:
- *       - application/json
- *     parameters:
- *       - in: formData
- *         name: name
- *         type: string
- *         required: true
- *       - in: formData
- *         name: email
- *         type: string
- *         required: true
- *       - in: formData
- *         name: userName
- *         type: string
- *         required: true
- *       - in: formData
- *         name: dob
- *         type: string
- *         required: true
- *       - in: formData
- *         name: mobileNumber
- *         type: string
- *         required: true
- *       - in: formData
- *         name: address
- *         type: string
- *         required: true
- *       - in: formData
- *         name: gender
- *         type: string
- *         required: true
- *       - in: formData
- *         name: countryCode
- *         type: string
- *         required: true
- *       - in: formData
- *         name: password
- *         type: string
- *         required: true
- *       - in: formData
- *         name: deviceToken
- *         type: string
- *         required: false
- *       - in: formData
- *         name: files
- *         type: file
- *         required: false
- *         description: Profile picture
- *     responses:
- *       200:
- *         description: Successful signup
- *       404:
- *         description: User not found
- */
+     * @swagger
+     * /user/studentSignUp:
+     *   post:
+     *     tags:
+     *       - USER
+     *     description: Sign Up
+     *     consumes:
+     *       - multipart/form-data
+     *     produces:
+     *       - application/json
+     *     parameters:
+     *       - in: formData
+     *         name: name
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: email
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: dob
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: address
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: gender
+     *         type: string
+     *         required: true
+     *         enum:
+     *           - MALE
+     *           - FEMALE
+     *           - OTHER
+     *       - in: formData
+     *         name: password
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: currentSchool
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: previousSchool
+     *         type: string
+     *         required: false
+     *       - in: formData
+     *         name: deviceToken
+     *         type: string
+     *         required: false
+     *       - in: formData
+     *         name: profile
+     *         type: file
+     *         required: true
+     *         description: Profile picture
+     *       - in: formData
+     *         name: mothername
+     *         type: string
+     *         required: true
+     *         description: Mother's name
+     *       - in: formData
+     *         name: fathername
+     *         type: string
+     *         required: true
+     *         description: Father's name
+     *       - in: formData
+     *         name: mobileNumber
+     *         type: string
+     *         required: true
+     *         description: mobileNumber
+     *     responses:
+     *       200:
+     *         description: Successful signup
+     *       404:
+     *         description: User not found
+     */
 
-    async userSignUp(req, res, next) {
+    async studentSignUp(req, res, next) {
         const validationSchema = Joi.object({
             name: Joi.string().required(),
-            email: Joi.string().required(),
-            userName: Joi.string().required(),
-            dob: Joi.date().required(),
-            mobileNumber: Joi.string().required(),
+            email: Joi.string().email().required(),
             address: Joi.string().required(),
+            dob: Joi.date().required(),
             gender: Joi.string().required(),
-            countryCode: Joi.string().required().max(3),
+            currentSchool: Joi.string().required(),
+            previousSchool: Joi.string().optional(),
+            deviceToken: Joi.string().optional(),
             password: Joi.string().required(),
-            deviceToken: Joi.string().empty('').optional(),
+            mothername: Joi.string().required(),
+            fathername: Joi.string().required(),
+            mobileNumber: Joi.string().required()
         });
         try {
             const { error, value } = validationSchema.validate(req.body);
@@ -195,8 +209,7 @@ export const userController = {
                 return next(error);
             }
 
-
-            let user = await checkUserExists({ $or: [{ mobileNumber: value.mobileNumber }, { email: value.email }] });
+            let user = await checkUserExists({ email: value.email });
 
             if (user) {
                 throw apiError.alreadyExist(responseMessage.USER_ALREADY_EXIST);
@@ -221,13 +234,9 @@ export const userController = {
 
 
             value.password = bcrypt.hashSync(req.body.password, 10);
-            let otp = commonFunction.getOTP();
-            var otpTime = new Date().getTime() + 300000;
-            value.otp = otp;
-            value.otpTime = otpTime;
             value.profilePic = imageUrlResult;
+            value.userType = userType.STUDENT;
 
-            await commonFunction.sendMail(value.email, value.name, otp)
 
             const result = await createUser(value);
 
@@ -235,12 +244,165 @@ export const userController = {
                 _id: result._id,
                 name: result.name,
                 profilePic: result.profilePic,
-                isUserVerfied: result.isUserVerfied,
                 createdAt: result.createdAt,
-                userName: result.userName,
                 userType: result.userType,
                 approveStatus: result.approveStatus,
                 status: result.status,
+            };
+
+
+            return res.json(new response(userResponse, responseMessage.USER_CREATED));
+
+        } catch (error) {
+            return next(error);
+        }
+    },
+
+    /**
+     * @swagger
+     * /user/teacherSignUp:
+     *   post:
+     *     tags:
+     *       - USER
+     *     description: Teacher's Sign Up
+     *     consumes:
+     *       - multipart/form-data
+     *     produces:
+     *       - application/json
+     *     parameters:
+     *       - in: formData
+     *         name: name
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: email
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: dob
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: address
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: gender
+     *         type: string
+     *         required: true
+     *         enum:
+     *           - MALE
+     *           - FEMALE
+     *           - OTHER
+     *       - in: formData
+     *         name: password
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: currentSchool
+     *         type: string
+     *         required: false
+     *       - in: formData
+     *         name: previousSchool
+     *         type: string
+     *         required: false
+     *       - in: formData
+     *         name: deviceToken
+     *         type: string
+     *         required: false
+     *       - in: formData
+     *         name: experience
+     *         type: string
+     *         required: true
+     *       - in: formData
+     *         name: expertiseInSubjects
+     *         type: array
+     *         items:
+     *           type: string
+     *           enum:
+     *             - HINDI
+     *             - ENGLISH
+     *             - MATH
+     *             - SCIENCE
+     *             - HISTORY
+     *             - ART
+     *         collectionFormat: multi
+     *         required: true
+     *       - in: formData
+     *         name: profile
+     *         type: file
+     *         required: true
+     *         description: Profile picture
+     *     responses:
+     *       200:
+     *         description: Successful signup
+     *       404:
+     *         description: User not found
+     */
+
+    async teacherSignUp(req, res, next) {
+        const validationSchema = Joi.object({
+            name: Joi.string().required(),
+            email: Joi.string().email().required(),
+            address: Joi.string().required(),
+            dob: Joi.date().required(),
+            gender: Joi.string().required(),
+            currentSchool: Joi.string().optional(),
+            previousSchool: Joi.string().optional(),
+            deviceToken: Joi.string().optional(),
+            password: Joi.string().required(),
+            experience: Joi.string().required(),
+            expertiseInSubjects: Joi.alternatives().try(
+                Joi.string(),
+                Joi.array
+            ),
+
+        });
+        try {
+            const { error, value } = validationSchema.validate(req.body);
+
+            if (error) {
+                return next(error);
+            }
+
+            let user = await checkUserExists({ email: value.email });
+
+            if (user) {
+                throw apiError.alreadyExist(responseMessage.USER_ALREADY_EXIST);
+            }
+            let imageUrlResult;
+
+            if (req.files.length != 0) {
+                for (const image of req.files) {
+
+                    let imageResult = await commonFunction.uploadFile(
+                        image.path,
+                        image.originalname
+                    );
+                    imageUrlResult = imageResult;
+
+                    await commonFunction.removeFile(image.path)
+                }
+            }
+
+
+
+            value.password = bcrypt.hashSync(req.body.password, 10);
+            value.profilePic = imageUrlResult;
+            value.userType = userType.TEACHER;
+
+
+            let result = await createUser(value);
+
+            let userResponse = {
+                _id: result._id,
+                name: result.name,
+                profilePic: result.profilePic,
+                createdAt: result.createdAt,
+                userType: result.userType,
+                approveStatus: result.approveStatus,
+                status: result.status,
+                
             };
 
 
@@ -688,6 +850,43 @@ export const userController = {
     },
 
 
+    /**
+       * @swagger
+       * /user/logout:
+       *   post:
+       *     tags:
+       *       - USER
+       *     description: Logout User
+       *     produces:
+       *       - application/json
+       *     parameters:
+       *       - name: token
+       *         description: token
+       *         in: header
+       *         required: true
+       *       - name: deviceToken
+       *         description: deviceToken
+       *         in: query
+       *         required: true
+       *     responses:
+       *       200:
+       *         description: Returns success message
+       */
+
+
+    async logout(req, res, next) {
+        try {
+            await updateUser({ _id: req.userId }, { $pull: { deviceToken: req.body.deviceToken } });
+
+            return res.json(new response({}, responseMessage.USER_LOGOUT));
+
+        } catch (error) {
+            return next(error);
+        }
+
+    },
+
+
 
     /**
    * @swagger
@@ -723,6 +922,7 @@ export const userController = {
         }
 
     },
+
 
 
 
