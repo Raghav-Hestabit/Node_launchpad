@@ -81,8 +81,15 @@ var userModel = new Schema({
         type: String,
 
     },
-
     assignedTeacher: [
+        {
+            type: Mongoose.Schema.ObjectId,
+            ref: 'user',
+            type: String
+        }
+    ],
+
+    assignedStudents: [
         {
             type: Mongoose.Schema.ObjectId,
             ref: 'user',

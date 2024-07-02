@@ -29,6 +29,16 @@ export const userServices = {
             "-otp -password -otpTime -deviceToken");
     },
 
+    findStudent: async (query) => {
+        return await userModel.findById(query).select(
+            "-otp -password -otpTime -deviceToken -assignedStudents -experience -expertiseInSubjects");
+    },
+
+    findTeacher: async (query) => {
+        return await userModel.findById(query).select(
+            "-otp -password -otpTime -deviceToken -mothername -fathername -mobileNumber -assignedTeacher");
+    },
+
 
     findUserPagination: async (query, option) => {
         return await userModel.paginate(query, option)

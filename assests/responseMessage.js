@@ -79,4 +79,8 @@ module.exports = {
 	TEACHER_ASSIGNED: 'Teacher assigned sucessfully',
 	STUDENT_NOT_FOUND: 'Student not found.',
 	TEACHER_NOT_FOUND: 'Teacher not found.',
+	ACCOUNT_APPROVAL: ' Your account has been approved by the admin. Please log in to start using the application and enjoy its features.',
+	STUDENT_ASSIGNED: ' Your account has been approved by the admin. Please log in to start using the application and enjoy its features.',
+	ACCOUNT_VERIFICATION: ' Account Verification',
+	ASSIGN_STUDENT_HEADING: 'Student Assigned',
 }

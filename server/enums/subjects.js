@@ -4,5 +4,5 @@ export default Object.freeze({
     MATH: 'MATH',
     SCIENCE: 'SCIENCE',
     ART: 'ART',
-    ART: 'HISTORY',
+    HISTORY: 'HISTORY',
 })

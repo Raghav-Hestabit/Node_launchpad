@@ -12,14 +12,15 @@ export default Express.Router()
     .get('/forgotPassword',userController.forgotPassword)
     .put('/resetPassword',userController.resetPassword)
 
-    .use(upload.uploadFile)
-    .post('/studentSignUp',userController.studentSignUp)
-    .post('/teacherSignUp',userController.teacherSignUp)
-
 
     .use(auth.verifyToken)
     .get('/userProfile', userController.userProfile)
     .put('/changePassword',userController.changePassword)
     .post('/logout',userController.logout)
     .delete('/deleteAccount',userController.deleteAccount)
-    .post('/updateProfile',upload.uploadFile,userController.updateProfile)
+
+    .use(upload.uploadFile)
+    .post('/studentSignUp',userController.studentSignUp)
+    .post('/teacherSignUp',userController.teacherSignUp)
+    .post('/updateStudentProfile',userController.updateStudentProfile)
+    .post('/updateTeacherProfile',userController.updateTeacherProfile)

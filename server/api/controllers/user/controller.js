@@ -11,7 +11,7 @@ import approveStatus from '../../../enums/approveStatus';
 
 
 
-const { checkUserExists, createUser, userUpdate, findUser, findUserPagination } = userServices;
+const { checkUserExists, createUser, userUpdate, findUser, findStudent, findTeacher } = userServices;
 
 
 export const userController = {
@@ -78,7 +78,7 @@ export const userController = {
                 throw apiError.notFound(responseMessage.USER_NOT_FOUND);
             }
 
-            if(user.approveStatus !== approveStatus.APPROVED){
+            if (user.approveStatus !== approveStatus.APPROVED) {
                 throw apiError.unauthorized(responseMessage.APPROVAL_REQURIED)
             }
 
@@ -87,7 +87,7 @@ export const userController = {
                 throw apiError.unauthorized(responseMessage.INCORRECT_LOGIN);
             }
 
-           
+
             const token = await commonFunction.getToken({ userId: user._id });
             const userResponse = {
                 _id: user._id,
@@ -179,7 +179,7 @@ export const userController = {
      *         name: mobileNumber
      *         type: string
      *         required: true
-     *         description: mobileNumber
+     *         description: Parent's Mobile Number
      *     responses:
      *       200:
      *         description: Successful signup
@@ -354,7 +354,7 @@ export const userController = {
             experience: Joi.string().required(),
             expertiseInSubjects: Joi.alternatives().try(
                 Joi.string(),
-                Joi.array
+                Joi.array()
             ),
 
         });
@@ -402,7 +402,7 @@ export const userController = {
                 userType: result.userType,
                 approveStatus: result.approveStatus,
                 status: result.status,
-                
+
             };
 
 
@@ -520,6 +520,10 @@ export const userController = {
                 throw apiError.notFound(USER_NOT_FOUND);
             }
 
+            if (userDetail.approveStatus !== approveStatus.APPROVED) {
+                throw apiError.unauthorized(responseMessage.APPROVAL_REQURIED)
+            }
+
             let genrateOTP = commonFunction.getOTP();
             var otpTime = new Date().getTime() + 300000;
             await commonFunction.sendMail(value.email, value.name, otp)
@@ -572,6 +576,10 @@ export const userController = {
 
             if (!userDetail) {
                 throw apiError.notFound(USER_NOT_FOUND);
+            }
+
+            if (userDetail.approveStatus !== approveStatus.APPROVED) {
+                throw apiError.unauthorized(responseMessage.APPROVAL_REQURIED)
             }
 
             let genrateOTP = commonFunction.getOTP();
@@ -632,6 +640,10 @@ export const userController = {
                 throw apiError.notFound(USER_NOT_FOUND)
             }
 
+            if (userDetail.approveStatus !== approveStatus.APPROVED) {
+                throw apiError.unauthorized(responseMessage.APPROVAL_REQURIED)
+            }
+
 
             await userUpdate({ _id: value.userId }, { password: bcrypt.hashSync(value.password, 10) });
 
@@ -669,11 +681,8 @@ export const userController = {
 
     async userProfile(req, res, next) {
         try {
-            let userDetail = await findUser({ _id: req.userId })
-            if (!userDetail) {
-                throw apiError.notFound(responseMessage.USER_NOT_FOUND);
-            }
 
+            let userDetail = await findUser({ _id: req.userId });
             return res.json(new response(userDetail, responseMessage.USER_PROFILE_FOUND));
 
         } catch (error) {
@@ -736,7 +745,7 @@ export const userController = {
 
     /**
      * @swagger
-     * /user/updateProfile:
+     * /user/updateStudentProfile:
      *   post:
      *     tags:
      *       - USER
@@ -767,25 +776,29 @@ export const userController = {
      *         required: true
      *         description: address
      *       - in: formData
-     *         name: mobileNumber
-     *         type: string
-     *         required: true
-     *         description: mobileNumber
-     *       - in: formData
      *         name: gender
      *         type: string
      *         required: true
+     *         enum:
+     *           - MALE
+     *           - FEMALE
+     *           - OTHER
      *         description: gender
      *       - in: formData
-     *         name: countryCode
+     *         name: currentSchool 
      *         type: string
      *         required: true
-     *         description: countryCode
+     *         description: currentSchool 
      *       - in: formData
-     *         name: profile
+     *         name: previousSchool 
+     *         type: string
+     *         required: false
+     *         description: previousSchool 
+     *       - in: formData
+     *         name: profile 
      *         type: file
      *         required: true
-     *         description: profile
+     *         description: profile picture 
      *     responses:
      *       200:
      *         description: Successful signup
@@ -793,24 +806,23 @@ export const userController = {
      *         description: User not found
      */
 
-    async updateProfile(req, res, next) {
+    async updateStudentProfile(req, res, next) {
         let validateRequest = Joi.object({
             name: Joi.string().required(),
             dob: Joi.date().required(),
             address: Joi.string().required(),
-            mobileNumber: Joi.string().required(),
             gender: Joi.string().required(),
-            countryCode: Joi.string().required(),
+            currentSchool: Joi.string().required(),
+            previousSchool: Joi.string().optional(),
         })
 
         try {
             const { error, value } = validateRequest.validate(req.body);
-
             if (error) {
                 return next(error);
             }
 
-            let userDetails = await findUser({ _id: req.userId });
+            let userDetails = await checkUserExists({ _id: req.userId });
             if (!userDetails) {
                 throw apiError.notFound(responseMessage.USER_NOT_FOUND);
             }
@@ -830,24 +842,176 @@ export const userController = {
                 }
             }
 
-            userDetails.profilePic = imageUrlResult;
-            userDetails.name = value.name;
-            userDetails.dob = value.dob;
-            userDetails.address = value.address;
-            userDetails.mobileNumber = value.mobileNumber;
-            userDetails.gender = value.gender;
-            userDetails.countryCode = value.countryCode;
 
-            await userDetails.save();
+            let updatedProfile = await userUpdate({ _id: userDetails._id }, {
+                profilePic: imageUrlResult,
+                name: value.name,
+                dob: value.dob,
+                address: value.address,
+                gender: value.gender,
+                currentSchool: value.currentSchool,
+                previousSchool: value.previousSchool
+            });
 
 
-            return res.json(new response(userDetails, responseMessage.UPDATE_USER_PROFILE))
+            return res.json(new response(updatedProfile, responseMessage.UPDATE_USER_PROFILE))
 
         } catch (error) {
             return next(error);
         }
 
     },
+
+
+    /**
+     * @swagger
+     * /user/updateTeacherProfile:
+     *   post:
+     *     tags:
+     *       - USER
+     *     description: Profile update
+     *     consumes:
+     *       - multipart/form-data
+     *     produces:
+     *       - application/json
+     *     parameters:
+     *       - in: header
+     *         name: token
+     *         type: string
+     *         required: true
+     *         description: token
+     *       - in: formData
+     *         name: name
+     *         type: string
+     *         required: true
+     *         description: name
+     *       - in: formData
+     *         name: dob
+     *         type: string
+     *         required: true
+     *         description: dob
+     *       - in: formData
+     *         name: address
+     *         type: string
+     *         required: true
+     *         description: address
+     *       - in: formData
+     *         name: gender
+     *         type: string
+     *         required: true
+     *         enum:
+     *           - MALE
+     *           - FEMALE
+     *           - OTHER
+     *         description: gender
+     *       - in: formData
+     *         name: currentSchool 
+     *         type: string
+     *         required: false
+     *         description: currentSchool 
+     *       - in: formData
+     *         name: previousSchool 
+     *         type: string
+     *         required: false
+     *         description: previousSchool 
+     *       - in: formData
+     *         name: experience  
+     *         type: string
+     *         required: true
+     *         description: experience
+     *       - in: formData
+     *         name: expertiseInSubjects
+     *         type: array
+     *         items:
+     *           type: string
+     *           enum:
+     *             - HINDI
+     *             - ENGLISH
+     *             - MATH
+     *             - SCIENCE
+     *             - HISTORY
+     *             - ART
+     *         collectionFormat: multi
+     *         required: true  
+     *       - in: formData
+     *         name: profile 
+     *         type: file
+     *         required: true
+     *         description: profile picture 
+     *     responses:
+     *       200:
+     *         description: Successful signup
+     *       404:
+     *         description: User not found
+     */
+
+    async updateTeacherProfile(req, res, next) {
+        let validateRequest = Joi.object({
+            name: Joi.string().required(),
+            dob: Joi.date().required(),
+            address: Joi.string().required(),
+            gender: Joi.string().required(),
+            currentSchool: Joi.string().optional(),
+            previousSchool: Joi.string().optional(),
+            experience: Joi.string().required(),
+            expertiseInSubjects: Joi.alternatives().try(
+                Joi.string(),
+                Joi.array()
+            )
+        })
+
+        try {
+            const { error, value } = validateRequest.validate(req.body);
+            if (error) {
+                return next(error);
+            }
+
+            let userDetails = await checkUserExists({ _id: req.userId });
+            if (!userDetails) {
+                throw apiError.notFound(responseMessage.USER_NOT_FOUND);
+            }
+
+            let imageUrlResult;
+
+            if (req.files.length != 0) {
+                for (const image of req.files) {
+
+                    let imageResult = await commonFunction.uploadFile(
+                        image.path,
+                        image.originalname
+                    );
+                    imageUrlResult = imageResult;
+
+                    await commonFunction.removeFile(image.path)
+                }
+            }
+
+
+            let updateProfile = await userUpdate({ _id: userDetails._id }, {
+                profilePic: imageUrlResult,
+                name: value.name,
+                dob: value.dob,
+                address: value.address,
+                gender: value.gender,
+                currentSchool: value.currentSchool,
+                previousSchool: value.previousSchool,
+                experience: value.experience,
+                $addToSet: {
+                    expertiseInSubjects: Array.isArray(value.expertiseInSubjects)
+                        ? { $each: value.expertiseInSubjects }
+                        : value.expertiseInSubjects
+                }
+            });
+
+
+            return res.json(new response(updateProfile, responseMessage.UPDATE_USER_PROFILE))
+
+        } catch (error) {
+            return next(error);
+        }
+
+    },
+
 
 
     /**

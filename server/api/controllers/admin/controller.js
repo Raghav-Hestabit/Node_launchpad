@@ -141,6 +141,7 @@ export const adminController = {
     *         description: userRole
     *         in: query
     *         enum:
+    *           - ALL
     *           - STUDENT
     *           - TEACHER
     *           - ADMIN
@@ -172,13 +173,15 @@ export const adminController = {
 
 
 
-            let query = { status: { $eq: value.status } };
+            let query = {};
 
-            if (value.status == "ALL") {
-                query = {}
+            if (value.status && value.status !== "ALL") {
+                query.status = value.status;
             }
 
-            query = { userType: value.userRole }
+            if (value.userRole && value.userRole !== "ALL") {
+                query.userType = value.userRole;
+            }
 
             if (value.search) {
                 query.name = { $regex: value.search, $options: 'i' }
@@ -187,7 +190,7 @@ export const adminController = {
                 page: Number(value.page) || 1,
                 limit: Number(value.limit) || 10,
                 sort: { createdAt: -1 },
-                populate : "assignedTeacher"
+                populate: "assignedTeacher assignedStudents"
             }
 
             let result = await findUserPagination(query, option)
@@ -236,8 +239,9 @@ export const adminController = {
                 throw apiError.notFound(responseMessage.REQUESTED_USER_NOT_FOUND);
             }
 
-
             await userUpdate({ _id: value.userId }, { approveStatus: approveStatus.APPROVED });
+
+            await commonFunction.sendMail(userDetails.email, userDetails.name, undefined, responseMessage.ACCOUNT_APPROVAL, responseMessage.ACCOUNT_VERIFICATION);
 
             return res.json(new response({}, responseMessage.ACCOUNT_APPROVED));
 
@@ -304,34 +308,34 @@ export const adminController = {
 
 
     /**
-* @swagger
-* /admin/blockUnblockUser:
-*   post:
-*     tags:
-*       - ADMIN
-*     description: Delete user
-*     produces:
-*       - application/json
-*     parameters:
-*       - name: token
-*         description: admin token
-*         in: header
-*         required: true
-*       - name: userId
-*         description: userId
-*         in: query
-*         required: true
-*       - name: status
-*         description: status
-*         in: query
-*         enum:
-*           - BLOCK
-*           - UNBLOCK
-*         required: true
-*     responses:
-*       200:
-*         description: Returns success message
-*/
+    * @swagger
+    * /admin/blockUnblockUser:
+    *   post:
+    *     tags:
+    *       - ADMIN
+    *     description: Delete user
+    *     produces:
+    *       - application/json
+    *     parameters:
+    *       - name: token
+    *         description: admin token
+    *         in: header
+    *         required: true
+    *       - name: userId
+    *         description: userId
+    *         in: query
+    *         required: true
+    *       - name: status
+    *         description: status
+    *         in: query
+    *         enum:
+    *           - BLOCK
+    *           - UNBLOCK
+    *         required: true
+    *     responses:
+    *       200:
+    *         description: Returns success message
+    */
 
 
     async blockUnblockUser(req, res, next) {
@@ -385,32 +389,32 @@ export const adminController = {
 
 
 
-/**
-    * @swagger
-    * /admin/assignTeacher:
-    *   post:
-    *     tags:
-    *       - ADMIN
-    *     description: Assign teacher
-    *     produces:
-    *       - application/json
-    *     parameters:
-    *       - name: token
-    *         description: admin token
-    *         in: header
-    *         required: true
-    *       - name: teacherId
-    *         description: teacherId
-    *         in: formData
-    *         required: true
-    *       - name: studentId
-    *         description: studentId
-    *         in: formData
-    *         required: true
-    *     responses:
-    *       200:
-    *         description: Returns success message
-    */    
+    /**
+        * @swagger
+        * /admin/assignTeacher:
+        *   post:
+        *     tags:
+        *       - ADMIN
+        *     description: Assign teacher
+        *     produces:
+        *       - application/json
+        *     parameters:
+        *       - name: token
+        *         description: admin token
+        *         in: header
+        *         required: true
+        *       - name: teacherId
+        *         description: teacherId
+        *         in: formData
+        *         required: true
+        *       - name: studentId
+        *         description: studentId
+        *         in: formData
+        *         required: true
+        *     responses:
+        *       200:
+        *         description: Returns success message
+        */
 
     async assignTeacher(req, res, next) {
         let validateRequest = joi.object({
@@ -431,13 +435,30 @@ export const adminController = {
             }
 
 
-            let userDetails = await checkUserExists({ _id: value.studentId, $and: [{ status: status.ACTIVE }, { approveStatus: approveStatus.APPROVED }] });
+            let userDetails = await checkUserExists({ _id: value.studentId, $and: [{ status: status.ACTIVE }, { approveStatus: approveStatus.APPROVED }, { userType: userType.STUDENT }] });
             if (!userDetails) {
                 throw apiError.notFound(responseMessage.STUDENT_NOT_FOUND);
             }
 
-            await userUpdate({ _id: value.studentId }, { $addToSet: { assignedTeacher: value.teacherId } });
 
+
+            await Promise.all([
+                userUpdate(
+                    { _id: value.studentId },
+                    { $addToSet: { assignedTeacher: value.teacherId } }
+                ),
+                userUpdate(
+                    { _id: value.teacherId },
+                    { $addToSet: { assignedStudents: value.studentId } }
+                ),
+                commonFunction.sendMail(
+                    teacherDetails.email,
+                    teacherDetails.name,
+                    undefined,
+                    responseMessage.STUDENT_ASSIGNED,
+                    responseMessage.ASSIGN_STUDENT_HEADING
+                )
+            ]);
             return res.json(new response({}, responseMessage.TEACHER_ASSIGNED));
 
         } catch (error) {
@@ -445,6 +466,9 @@ export const adminController = {
         }
 
     },
+
+
+
 
 
 
