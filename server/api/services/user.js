@@ -1,3 +1,4 @@
+import { query } from 'express';
 import userModel from '../../models/user';
 
 
@@ -11,6 +12,10 @@ export const userServices = {
         } catch (error) {
             throw error;
         }
+    },
+
+    findAllUsers: async (query) => {
+        return await userModel.find(query);
     },
 
     createUser: async (insertObj) => {

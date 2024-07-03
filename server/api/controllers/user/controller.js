@@ -467,9 +467,6 @@ export const userController = {
                 throw apiError.invalid(responseMessage.INCORRECT_OTP)
             }
 
-            await userUpdate({ _id: userDetail._id }, { isUserVerfied: true })
-
-
             return res.json(new response({}, responseMessage.OTP_VERIFY));
 
 
