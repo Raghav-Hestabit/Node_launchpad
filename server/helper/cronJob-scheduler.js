@@ -6,18 +6,18 @@ import responseMessage from '../../assests/responseMessage';
 import userType from '../enums/userType';
 
 const { findAllUsers, checkUserExists } = userServices;
-const cronTime = '* * * * *'; 
+const cronTime = '00 17 * * *'; 
 
 export class Scheduler {
     constructor() {
-        this.startScheduler(cronTime);
+        this.startScheduler();
     }
 
-    async startScheduler(cronTime) {
+    async startScheduler() {
         cron.schedule(cronTime, async () => {
             try {
                 let adminDetails =  await checkUserExists({userType:userType.ADMIN});
-                const unapprovedUsers = await findAllUnapprovedUsers();
+                const unapprovedUsers =  await findAllUsers({ approveStatus: approveStatus.PENDING });
                 if (unapprovedUsers.length > 0) {
                    
                     let description = `This is to notify you that ${unapprovedUsers.length === 1 ? 'there is 1 user' : `there are ${unapprovedUsers.length} users`} awaiting approval for their accounts.
@@ -25,9 +25,9 @@ export class Scheduler {
 
 
                     await commonFunction.sendMail(adminDetails.email, adminDetails.name, undefined, description, responseMessage.ACCOUNT_VERIFICATION_REMINDER);
-                    console.log('Email sent to admin with unapproved users list.');
+                    console.log(responseMessage.UNAPPROVED_USER_EMAIL);
                 } else {
-                    console.log('No unapproved users found.');
+                    console.log(responseMessage.NO_UNAPPROVED_USER_EMAIL);
                 }
             } catch (error) {
                 console.error('Error sending email:', error);
@@ -36,13 +36,3 @@ export class Scheduler {
     }
 }
 
-async function findAllUnapprovedUsers() {
-    try {
-
-        const users = await findAllUsers({ approveStatus: approveStatus.PENDING });
-        return users;
-    } catch (error) {
-        console.error('Error fetching unapproved users:', error);
-        throw error;
-    }
-}

@@ -82,6 +82,11 @@ export const userController = {
                 throw apiError.unauthorized(responseMessage.APPROVAL_REQURIED)
             }
 
+            if (user.status === status.BLOCK) {
+                throw apiError.forbidden(responseMessage.BLOCK_BY_ADMIN)
+            }
+
+
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) {
                 throw apiError.unauthorized(responseMessage.INCORRECT_LOGIN);
@@ -444,7 +449,7 @@ export const userController = {
     async verifyOTP(req, res, next) {
         let validateSchema = Joi.object({
             otp: Joi.string().required().min(6).max(6),
-            userId: Joi.string().required()
+            userId: Joi.string().required().max(30)
         })
         try {
 
@@ -489,9 +494,9 @@ export const userController = {
     *       - application/json
     *     parameters:
     *       - in: query
-    *         name: mobileNumberOREmail
+    *         name: email
     *         type: string
-    *         description: mobileNumberOREmail 
+    *         description: email 
     *         required: true
     *     responses:
     *       200:
@@ -503,7 +508,7 @@ export const userController = {
 
     async resendOTP(req, res, next) {
         let validateRequest = Joi.object({
-            mobileNumberOREmail: Joi.string().required()
+            email: Joi.string().required().email()
         });
         try {
             const { error, value } = validateRequest.validate(req.query);
@@ -511,7 +516,7 @@ export const userController = {
                 return next(error);
             }
 
-            let userDetail = await checkUserExists({ $or: [{ email: value.mobileNumberOREmail }, { mobileNumber: value.mobileNumberOREmail }] });
+            let userDetail = await checkUserExists({ email: value.email });
 
             if (!userDetail) {
                 throw apiError.notFound(USER_NOT_FOUND);
@@ -547,9 +552,9 @@ export const userController = {
     *       - application/json
     *     parameters:
     *       - in: query
-    *         name: mobileNumberOREmail
+    *         name: email
     *         type: string
-    *         description: mobileNumberOREmail 
+    *         description: email 
     *         required: true
     *     responses:
     *       200:
@@ -561,7 +566,7 @@ export const userController = {
 
     async forgotPassword(req, res, next) {
         let validateRequest = Joi.object({
-            mobileNumberOREmail: Joi.string().required()
+            email: Joi.string().required().email()
         });
         try {
             const { error, value } = validateRequest.validate(req.query);
@@ -569,7 +574,7 @@ export const userController = {
                 return next(error);
             }
 
-            let userDetail = await checkUserExists({ $or: [{ email: value.mobileNumberOREmail }, { mobileNumber: value.mobileNumberOREmail }] });
+            let userDetail = await checkUserExists({  email: value.email });
 
             if (!userDetail) {
                 throw apiError.notFound(USER_NOT_FOUND);
@@ -642,7 +647,7 @@ export const userController = {
             }
 
 
-            await userUpdate({ _id: value.userId }, { password: bcrypt.hashSync(value.password, 10) });
+            await userUpdate({ _id: userDetail.userId }, { password: bcrypt.hashSync(value.password, 10) });
 
             return res.json(new response({}, responseMessage.PWD_CHANGED));
 
@@ -721,12 +726,6 @@ export const userController = {
             const { error, value } = validateRequest.validate(req.query)
             if (error) {
                 return next(error);
-            }
-
-
-            let userDetail = await findUser({ _id: req.userId });
-            if (!userDetail) {
-                throw apiError.notFound(responseMessage.USER_NOT_FOUND);
             }
 
             await userUpdate({ _id: req.userId }, { password: bcrypt.hashSync(value.password, 10) });

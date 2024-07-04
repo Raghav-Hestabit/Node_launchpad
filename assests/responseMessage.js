@@ -84,4 +84,6 @@ module.exports = {
 	ACCOUNT_VERIFICATION: ' Account Verification',
 	ACCOUNT_VERIFICATION_REMINDER: ' Account Verification Reminder',
 	ASSIGN_STUDENT_HEADING: 'Student Assigned',
+	UNAPPROVED_USER_EMAIL: 'Email sent to admin for unapproved users.',
+	NO_UNAPPROVED_USER_EMAIL: 'No unapproved users found.',
 }

@@ -5,7 +5,7 @@ import { Scheduler } from './helper/cronJob-scheduler';
 
 const dbUrl = `mongodb+srv://${process.env.ATLAS_CONFIG_DATABASE_USER}:${process.env.ATLAS_CONFIG_DATABASE_PASS}@${process.env.ATLAS_CONFIG_CLUSTER_HOST}/${process.env.ATLAS_CONFIG_DATABASE_NAME}?retryWrites=true&w=majority`;
 
-// new Scheduler();
+new Scheduler();
 
 const server = new Server()
   .router(routes)

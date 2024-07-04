@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import commonFunction from "../../../helper/util";
 import approveStatus, { PENDING } from '../../../enums/approveStatus';
 
-const { checkUserExists, createUser, userUpdate, findUser, findUserPagination } = userServices;
+const { checkUserExists, findAllUsers, userUpdate, findUser, findUserPagination } = userServices;
 
 
 
@@ -34,8 +34,10 @@ export const adminController = {
 *           properties:
 *             emailOrMobile:
 *               type: string
+*               example: admin@mailinator.com
 *             password:
 *               type: string
+*               example: Hestabit@1
 *           required:
 *             - emailOrMobile
 *             - password
@@ -279,16 +281,12 @@ export const adminController = {
     async deleteUser(req, res, next) {
         let validateRequest = joi.object({
             userId: joi.string().required()
-        })
+        });
+
         try {
             const { error, value } = validateRequest.validate(req.query);
             if (error) {
                 return next(error);
-            }
-
-            let adminDetails = await findUser({ _id: req.userId });
-            if (!adminDetails) {
-                throw apiError.notFound(responseMessage.ADMIN_NOT_FOUND);
             }
 
             let userDetails = await checkUserExists({ _id: value.userId, userType: { $ne: userType.ADMIN } });
@@ -296,14 +294,30 @@ export const adminController = {
                 throw apiError.notFound(responseMessage.REQUESTED_USER_NOT_FOUND);
             }
 
+            let allTeachers = userDetails.assignedTeacher;
 
-            await userUpdate({ _id: value.userId }, { status: status.DELETE });
 
-            return res.json(new response({}, responseMessage.USER_DELETE))
+            await userUpdate(
+                { _id: value.userId },
+                { $set: { assignedTeacher: [], status: status.DELETE } }
+            );
+
+
+            await userUpdate(
+                { _id: { $in: allTeachers } },
+                { $pull: { assignedStudents: value.userId } },
+                { multi: true }
+            );
+
+
+
+
+            return res.json(new response({}, responseMessage.USER_DELETE));
         } catch (error) {
             return next(error);
         }
     },
+
 
 
 
@@ -361,8 +375,8 @@ export const adminController = {
 
             let message;
             switch (value.status) {
-                case "BLOCK":
-                    if (userDetails.status === "BLOCK") {
+                case status.BLOCK:
+                    if (userDetails.status === status.BLOCK) {
                         message = responseMessage.USERS_ALREADY_BLOCKED;
                     } else {
                         await userUpdate({ _id: value.userId }, { status: status.BLOCK });
