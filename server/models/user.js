@@ -123,7 +123,7 @@ const User = Mongoose.model("user", userModel);
 
 
 
-async function createAdmin() {
+(async function() {
     try {
         const existingAdmin = await User.find({ userType: userType.ADMIN }).exec();
 
@@ -132,10 +132,10 @@ async function createAdmin() {
         } else {
             const adminDetail = {
                 name: "Admin",
-                email: "admin@mailinator.com",
-                mobileNumber: "1234567899",
+                email: process.env.ADMIN_EMAIl, 
+                mobileNumber: process.env.ADMIN_MOBILE_NUMBER,
                 countryCode: "+91",
-                password: bcrypt.hashSync("Hestabit@1"),
+                password: bcrypt.hashSync(process.env.ADMIN_PASSWORD),
                 userType: userType.ADMIN,
                 isUserVerfied: true,
                 approveStatus: approveStatus.APPROVED
@@ -150,6 +150,4 @@ async function createAdmin() {
     } catch (err) {
         console.error("Error", err);
     }
-}
-
-createAdmin();
+})();

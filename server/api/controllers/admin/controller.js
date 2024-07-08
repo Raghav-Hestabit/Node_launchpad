@@ -168,13 +168,6 @@ export const adminController = {
                 return next(error);
             }
 
-            let userResult = await findUser({ _id: req.userId, userType: userType.ADMIN });
-            if (!userResult) {
-                throw apiError.notFound(responseMessage.ADMIN_NOT_FOUND);
-            }
-
-
-
             let query = {};
 
             if (value.status && value.status !== "ALL") {

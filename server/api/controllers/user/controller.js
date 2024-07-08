@@ -74,7 +74,7 @@ export const userController = {
                     { email: email }
                 ]
             });
-            if (!user) {
+            if (!user) {  
                 throw apiError.notFound(responseMessage.USER_NOT_FOUND);
             }
 
