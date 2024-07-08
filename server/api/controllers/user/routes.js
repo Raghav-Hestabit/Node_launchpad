@@ -14,11 +14,7 @@ export default Express.Router()
 
     .post('/studentSignUp',upload.uploadFile,userController.studentSignUp)
     .post('/teacherSignUp',upload.uploadFile,userController.teacherSignUp)
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> 3d200f78406d67dcd2b414d5e6976bc0205da4e6
     .use(auth.verifyToken)
     .get('/userProfile', userController.userProfile)
     .put('/changePassword',userController.changePassword)
